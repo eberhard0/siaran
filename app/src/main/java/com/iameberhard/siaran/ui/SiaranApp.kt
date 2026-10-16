@@ -69,10 +69,10 @@ import com.iameberhard.siaran.data.Catalog
 import com.iameberhard.siaran.data.Channel
 
 private enum class Tab(val label: String, val icon: ImageVector) {
+    FAVORITES("Favourites", Icons.Filled.Star),
     HOME("Home", Icons.Filled.Home),
     BROWSE("Browse", Icons.Filled.Public),
     SEARCH("Search", Icons.Filled.Search),
-    FAVORITES("Favourites", Icons.Filled.Star),
 }
 
 /**
@@ -89,9 +89,8 @@ fun SiaranApp(
     val catalogState by vm.catalog.collectAsStateWithLifecycle()
     val nowPlaying by vm.nowPlaying.collectAsStateWithLifecycle()
     val favorites by vm.library.favorites.collectAsStateWithLifecycle()
-    val recent by vm.library.recent.collectAsStateWithLifecycle()
-
-    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
+    // Open on Favourites once there are some; until then Home has something to pick.
+    var tab by rememberSaveable { mutableStateOf(if (favorites.isEmpty()) Tab.HOME else Tab.FAVORITES) }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
 
     val actions = ChannelActions(
@@ -154,7 +153,7 @@ fun SiaranApp(
                         Tab.HOME -> HomeTab(state.catalog, vm, actions)
                         Tab.BROWSE -> BrowseTab(state.catalog, actions)
                         Tab.SEARCH -> SearchTab(state.catalog, actions)
-                        Tab.FAVORITES -> FavoritesTab(favorites, recent, actions)
+                        Tab.FAVORITES -> FavoritesTab(favorites, actions)
                     }
                 }
             }
@@ -426,23 +425,19 @@ private fun SearchTab(catalog: Catalog, actions: ChannelActions) {
     }
 }
 
+/** Only the starred channels, in the order they were added. */
 @Composable
-private fun FavoritesTab(favorites: List<Channel>, recent: List<Channel>, actions: ChannelActions) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
-        item { SectionHeader("Favourites") }
-        if (favorites.isEmpty()) {
-            item {
-                Text(
-                    "Tap ☆ on any channel to keep it here.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-        }
-        channelItems(favorites, actions, keyPrefix = "fav")
-        if (recent.isNotEmpty()) {
-            item { SectionHeader("Recently watched") }
-            channelItems(recent, actions, keyPrefix = "recent")
-        }
+private fun FavoritesTab(favorites: List<Channel>, actions: ChannelActions) {
+    Column {
+        Text(
+            "Favourites",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+        )
+        ChannelList(
+            favorites,
+            actions,
+            empty = "No favourites yet. Tap ☆ next to any channel and it will appear here.",
+        )
     }
 }
