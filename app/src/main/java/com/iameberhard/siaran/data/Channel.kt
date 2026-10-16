@@ -19,9 +19,10 @@ data class Channel(
     val quality: String? get() = QUALITY.find(name)?.groupValues?.get(1)
     val notAlwaysOn: Boolean get() = name.contains("[Not 24/7]")
     val geoBlocked: Boolean get() = name.contains("[Geo-blocked]")
-
-    private companion object {
-        val QUALITY = Regex("""\s*\((\d{3,4}p)\)""")
-        val TAGS = Regex("""\s*\[[^\]]*]""")
-    }
 }
+
+// Top level, not a companion: kotlinx.serialization puts the generated serializer()
+// on the class's companion, and a private companion made it inaccessible after R8
+// (IllegalAccessError the moment a channel was saved to Recently watched).
+private val QUALITY = Regex("""\s*\((\d{3,4}p)\)""")
+private val TAGS = Regex("""\s*\[[^\]]*]""")
