@@ -62,7 +62,8 @@ class MainActivity : ComponentActivity() {
     /** Leaving the app while a channel plays shrinks it to a floating window. */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (vm.player.isPlaying && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        // With the floating window off, onStop() pauses playback instead.
+        if (vm.library.pipEnabled && vm.player.isPlaying && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             runCatching {
                 enterPictureInPictureMode(
                     PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build(),

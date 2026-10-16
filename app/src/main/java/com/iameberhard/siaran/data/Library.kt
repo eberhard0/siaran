@@ -25,6 +25,11 @@ class Library(context: Context) {
         get() = prefs.getString(KEY_COUNTRY, "Indonesia") ?: "Indonesia"
         set(value) = prefs.edit().putString(KEY_COUNTRY, value).apply()
 
+    /** Leaving the app while playing shrinks the video to a floating window. */
+    var pipEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PIP, true)
+        set(value) = prefs.edit().putBoolean(KEY_PIP, value).apply()
+
     fun isFavorite(ch: Channel) = _favorites.value.any { it.url == ch.url }
 
     fun toggleFavorite(ch: Channel) {
@@ -51,5 +56,6 @@ class Library(context: Context) {
         const val KEY_FAV = "favorites"
         const val KEY_RECENT = "recent"
         const val KEY_COUNTRY = "home_country"
+        const val KEY_PIP = "pip_enabled"
     }
 }

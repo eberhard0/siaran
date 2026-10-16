@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -92,6 +94,7 @@ fun SiaranApp(
     // Open on Favourites once there are some; until then Home has something to pick.
     var tab by rememberSaveable { mutableStateOf(if (favorites.isEmpty()) Tab.HOME else Tab.FAVORITES) }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
+    var showSettings by remember { mutableStateOf(false) }
 
     val actions = ChannelActions(
         nowPlayingUrl = nowPlaying?.channel?.url,
@@ -150,10 +153,10 @@ fun SiaranApp(
                 is CatalogState.Ready -> Column {
                     if (state.refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
                     when (tab) {
-                        Tab.HOME -> HomeTab(state.catalog, vm, actions)
+                        Tab.HOME -> HomeTab(state.catalog, vm, actions, onOpenSettings = { showSettings = true })
                         Tab.BROWSE -> BrowseTab(state.catalog, actions)
                         Tab.SEARCH -> SearchTab(state.catalog, actions)
-                        Tab.FAVORITES -> FavoritesTab(favorites, actions)
+                        Tab.FAVORITES -> FavoritesTab(favorites, actions, onOpenSettings = { showSettings = true })
                     }
                 }
             }
@@ -205,6 +208,10 @@ fun SiaranApp(
             }
         }
     }
+
+    if (showSettings) {
+        SettingsDialog(vm = vm, onDismiss = { showSettings = false })
+    }
 }
 
 @Composable
@@ -242,7 +249,12 @@ private fun LoadFailed(message: String, onRetry: () -> Unit) {
 
 /** The home country's channels, filterable by category. */
 @Composable
-private fun HomeTab(catalog: Catalog, vm: AppViewModel, actions: ChannelActions) {
+private fun HomeTab(
+    catalog: Catalog,
+    vm: AppViewModel,
+    actions: ChannelActions,
+    onOpenSettings: () -> Unit,
+) {
     var country by remember { mutableStateOf(vm.library.homeCountry) }
     var pickCountry by remember { mutableStateOf(false) }
     var category by rememberSaveable(country) { mutableStateOf<String?>(null) }
@@ -274,6 +286,9 @@ private fun HomeTab(catalog: Catalog, vm: AppViewModel, actions: ChannelActions)
             TextButton(onClick = { pickCountry = true }) { Text("Change") }
             IconButton(onClick = { vm.loadCatalog(force = true) }) {
                 Icon(Icons.Filled.Refresh, contentDescription = "Refresh channel list")
+            }
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
             }
         }
         LazyRow(
@@ -427,17 +442,61 @@ private fun SearchTab(catalog: Catalog, actions: ChannelActions) {
 
 /** Only the starred channels, in the order they were added. */
 @Composable
-private fun FavoritesTab(favorites: List<Channel>, actions: ChannelActions) {
+private fun FavoritesTab(favorites: List<Channel>, actions: ChannelActions, onOpenSettings: () -> Unit) {
     Column {
-        Text(
-            "Favourites",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Favourites",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        }
         ChannelList(
             favorites,
             actions,
             empty = "No favourites yet. Tap ☆ next to any channel and it will appear here.",
         )
     }
+}
+
+@Composable
+private fun SettingsDialog(vm: AppViewModel, onDismiss: () -> Unit) {
+    var pip by remember { mutableStateOf(vm.library.pipEnabled) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Settings") },
+        text = {
+            Row(
+                Modifier.fillMaxWidth().clickable {
+                    pip = !pip
+                    vm.library.pipEnabled = pip
+                },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Floating window", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (pip) "Leaving the app keeps the channel playing in a small window."
+                        else "Leaving the app stops the channel.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = pip,
+                    onCheckedChange = {
+                        pip = it
+                        vm.library.pipEnabled = it
+                    },
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+    )
 }
