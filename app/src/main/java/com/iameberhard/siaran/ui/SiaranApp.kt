@@ -71,10 +71,10 @@ import com.iameberhard.siaran.data.Catalog
 import com.iameberhard.siaran.data.Channel
 
 private enum class Tab(val label: String, val icon: ImageVector) {
-    FAVORITES("Favourites", Icons.Filled.Star),
     HOME("Home", Icons.Filled.Home),
     BROWSE("Browse", Icons.Filled.Public),
     SEARCH("Search", Icons.Filled.Search),
+    FAVORITES("Favourites", Icons.Filled.Star),
 }
 
 /**
@@ -91,8 +91,9 @@ fun SiaranApp(
     val catalogState by vm.catalog.collectAsStateWithLifecycle()
     val nowPlaying by vm.nowPlaying.collectAsStateWithLifecycle()
     val favorites by vm.library.favorites.collectAsStateWithLifecycle()
-    // Open on Favourites once there are some; until then Home has something to pick.
-    var tab by rememberSaveable { mutableStateOf(if (favorites.isEmpty()) Tab.HOME else Tab.FAVORITES) }
+    val recent by vm.library.recent.collectAsStateWithLifecycle()
+
+    var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     var showSettings by remember { mutableStateOf(false) }
 
@@ -156,7 +157,7 @@ fun SiaranApp(
                         Tab.HOME -> HomeTab(state.catalog, vm, actions, onOpenSettings = { showSettings = true })
                         Tab.BROWSE -> BrowseTab(state.catalog, actions)
                         Tab.SEARCH -> SearchTab(state.catalog, actions)
-                        Tab.FAVORITES -> FavoritesTab(favorites, actions, onOpenSettings = { showSettings = true })
+                        Tab.FAVORITES -> FavoritesTab(favorites, recent, actions, onOpenSettings = { showSettings = true })
                     }
                 }
             }
@@ -440,28 +441,44 @@ private fun SearchTab(catalog: Catalog, actions: ChannelActions) {
     }
 }
 
-/** Only the starred channels, in the order they were added. */
+/** Starred channels first, then the last channels watched. */
 @Composable
-private fun FavoritesTab(favorites: List<Channel>, actions: ChannelActions, onOpenSettings: () -> Unit) {
-    Column {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Favourites",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+private fun FavoritesTab(
+    favorites: List<Channel>,
+    recent: List<Channel>,
+    actions: ChannelActions,
+    onOpenSettings: () -> Unit,
+) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Favourites",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                }
             }
         }
-        ChannelList(
-            favorites,
-            actions,
-            empty = "No favourites yet. Tap ☆ next to any channel and it will appear here.",
-        )
+        if (favorites.isEmpty()) {
+            item {
+                Text(
+                    "Tap ☆ next to any channel to keep it here.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+        }
+        channelItems(favorites, actions, keyPrefix = "fav")
+        if (recent.isNotEmpty()) {
+            item { SectionHeader("Recently watched") }
+            channelItems(recent, actions, keyPrefix = "recent")
+        }
     }
 }
 
